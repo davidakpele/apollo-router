@@ -8,7 +8,7 @@
         use apollo_compiler::Schema;
         use apollo_federation::{
             subgraph::typestate::{Initial, Subgraph},
-            composition::upgrade_subgraphs_if_necessary, // ✅ Use your re-exported version here
+            composition::upgrade_subgraphs_if_necessary, 
         };
 
         let raw_sdl = r#"
@@ -17,20 +17,20 @@
             }
         "#;
 
-        // Step 1: Parse schema
+        //  Parse schema
         let parsed_schema = Schema::parse(raw_sdl, "test.graphql").expect("schema parse failed");
 
-        // Step 2: Create initial subgraph
+        //Create initial subgraph
         let subgraph = Subgraph::<Initial>::new("TestSubgraph", "http://localhost", parsed_schema);
 
-        // Step 3: Expand links
+        //  Expand links
         let expanded = subgraph.expand_links().expect("expand_links failed");
 
-        // Step 4: Upgrade using your public helper
+        //  Upgrade using your public helper
         let upgraded_vec = upgrade_subgraphs_if_necessary(vec![expanded]).expect("upgrade failed");
         let upgraded = upgraded_vec.into_iter().next().expect("no subgraph");
 
-        // Step 5: Validate
+        // Validate
         let validated = upgraded.validate().expect("validation failed");
 
         validated
@@ -58,10 +58,7 @@
     #[test]
     fn test_pre_merge_validations_passes_with_unique_subgraphs() {
         let subgraph1 = create_dummy_validated_subgraph();
-        let subgraph2 = create_dummy_validated_subgraph(); // different instance, same content
         let result = pre_merge_validations(&[subgraph1, subgraph2]);
-
-        // Since schema strings are the same, this should error
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert!(errors.iter().any(|e| matches!(e, CompositionError::TypeDefinitionInvalid { .. })));
