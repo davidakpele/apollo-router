@@ -4,3 +4,5 @@ mod core_test;
 mod extract_subgraphs;
 mod query_plan;
 mod subgraph;
+
+mod assessment_test;
