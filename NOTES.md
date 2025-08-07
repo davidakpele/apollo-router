@@ -2,7 +2,7 @@
 
 
 ## Overview
-This document details the Rust implementation of Apollo Federation composition functions ported from the Node.js reference implementation. The core functionality validates and merges GraphQL subgraphs into a federated supergraph schema.
+- This document outlines the implementation of core Apollo Federation composition logic in Rust, mirroring the functionality of the Node.js reference (compose.ts). The primary goal is to validate, merge, and finalize a supergraph schema from multiple subgraphs.
 
 ## Objective
 - Port the core composition logic from the Node.js implementation (compose.ts) to the Rust implementation
@@ -15,42 +15,67 @@ inside apollo-federation/src/composition/mod.rs. The goal was to bring the compo
 ## What Was Done
 1. pre_merge_validations(...)
 - Purpose:
-    - This function performs initial validations on the subgraphs before attempting a merge. It ensures no duplicate schemas exist and validates each subgraph’s schema.
-    
+    - Ensures all subgraphs are valid before attempting to merge. Detects duplicate schemas and validates each subgraph’s federation compliance.schema.
     - Key Logic:
-        -Tracks subgraphs via their schema_string() and detects duplicates.
-        - Attempts to create a ValidFederationSchema for each subgraph.
-        - Collects and returns any encountered CompositionError.
+        - Uses schema_string() to detect duplicate schemas.
+        - Attempts to construct ValidFederationSchema from each subgraph.
+        - Collects ```CompositionError::TypeDefinitionInvalid``` or SubgraphError.
 
 ```
 pub fn pre_merge_validations(
     subgraphs: &[Subgraph<Validated>],
-) -> Result<(), Vec<CompositionError>> {
-    ...
-}
+) -> Result<(), Vec<CompositionError>>
+
 ```
 
 2. merge_subgraphs(...)
 - Purpose:
-    - This function converts validated subgraphs into a ValidFederationSubgraphs structure and uses merge_federation_subgraphs to produce a merged supergraph.
+    - Takes validated subgraphs and produces a merged Supergraph schema.
      
     - Key Logic:
-        - Converts each subgraph schema into a ValidFederationSchema.
-        - Collects them into a BTreeMap used by ValidFederationSubgraphs.
-        - Uses the merger function merge_federation_subgraphs.
-        - Returns a Supergraph<Merged> on success or collects merge errors. 
+        - Converts each subgraph to a ValidFederationSubgraph.
+        - Populates a ValidFederationSubgraphs struct.
+        - Uses merge_federation_subgraphs(...) to merge.
+        - Returns a Supergraph<Merged> on success or a list of merge errors.
 
 ```
 pub fn merge_subgraphs(
     subgraphs: Vec<Subgraph<Validated>>,
-) -> Result<Supergraph<Merged>, Vec<CompositionError>> {
-    ...
-}
+) -> Result<Supergraph<Merged>, Vec<CompositionError>>
+
 ```
 
 3. post_merge_validations(...)
 - Purpose:
-    - This step ensures that the merged supergraph schema is structurally valid post-merge.
+    - Ensures the resulting supergraph is valid and executable.
+    - Key Logic:
+      - Confirms schema is non-empty.
+      - Ensures presence of a Query root type.
+      - Validates schema structure.
+      - Attempts to build a federated query graph.
+      - Checks for unresolved fields.
+```
+pub fn post_merge_validations(
+    supergraph: &Supergraph<Merged>,
+) -> Result<(), Vec<CompositionError>>
 
-- Status:
-    - Implemented or left for final implementation and testing (based on context — include implementation details if already written).
+```
+## Tests & Integration
+- I wrote extensive unit tests to verify each composition step. These tests were placed in a standalone integration test file: apollo-federation/tests/assessment_test.rs.
+
+- Test Cases Implemented
+   - test_pre_merge_validations_passes_with_unique_subgraphs
+       - Verifies duplicate subgraph detection.
+   - test_merge_subgraphs_success
+       - Ensures a valid subgraph merges successfully.
+   - test_post_merge_validations_success
+       - Validates a proper supergraph passes post-merge checks.
+   - test_post_merge_validations_fails_on_missing_query
+       - Ensures error is raised for missing root Query type.
+       - 
+### Supporting Test Helpers for test functions
+- create_dummy_validated_subgraph()
+  - Parses and validates a small schema, used across tests.
+- create_dummy_supergraph()
+    - Constructs a minimal valid Supergraph<Merged>. 
+    
